@@ -3,6 +3,7 @@ package instrumental
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -32,8 +33,9 @@ func init() {
 }
 
 type Config struct {
-	Addr  string
-	Token string
+	Addr   string
+	Token  string
+	Prefix string
 }
 
 func Instrumental(r metrics.Registry, d time.Duration, config Config) {
@@ -59,8 +61,10 @@ func connectAndSend(r metrics.Registry, d time.Duration, config Config) {
 		return
 	}
 
+	go io.Copy(os.Stderr, con)
+
 	for range time.Tick(d) {
-		if err := send(r, con); err != nil {
+		if err := send(r, con, config.Prefix); err != nil {
 			log.Println("instrumental:", err)
 		}
 	}
@@ -92,7 +96,7 @@ func setup(con net.Conn, config Config) error {
 	return s.Err()
 }
 
-func send(r metrics.Registry, con net.Conn) error {
+func send(r metrics.Registry, con net.Conn, prefix string) error {
 	vals := make(map[string]float64)
 	now := time.Now().Unix()
 	r.Each(func(name string, i interface{}) {
@@ -140,7 +144,10 @@ func send(r metrics.Registry, con net.Conn) error {
 	})
 
 	for n, v := range vals {
-		if _, err := con.Write([]byte(fmt.Sprintf("gauge %s %f %d\n", n, v, now))); err != nil {
+		if n[0] == '.' {
+			n = n[1:]
+		}
+		if _, err := con.Write([]byte(fmt.Sprintf("gauge %s.%s %f %d\n", prefix, n, v, now))); err != nil {
 			return err
 		}
 	}
