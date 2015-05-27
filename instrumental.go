@@ -44,7 +44,7 @@ func Instrumental(r metrics.Registry, d time.Duration, config Config) {
 	}
 	for {
 		connectAndSend(r, d, config)
-		time.Sleep(1)
+		time.Sleep(time.Second)
 	}
 }
 
