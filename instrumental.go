@@ -101,7 +101,6 @@ func send(r metrics.Registry, con net.Conn, prefix string) error {
 	types := make(map[string]string)
 	now := time.Now().Unix()
 	r.Each(func(name string, i interface{}) {
-		types[name] = "gauge"
 		switch m := i.(type) {
 		case metrics.Counter:
 			types[name] = "increment"
@@ -121,10 +120,14 @@ func send(r metrics.Registry, con net.Conn, prefix string) error {
 	})
 
 	for n, v := range vals {
+		t, ok := types[n]
+		if !ok {
+			t = "gauge"
+		}
 		if n[0] == '.' {
 			n = n[1:]
 		}
-		if _, err := con.Write([]byte(fmt.Sprintf("%s %s.%s %f %d\n", types[n], prefix, n, v, now))); err != nil {
+		if _, err := con.Write([]byte(fmt.Sprintf("%s %s.%s %f %d\n", t, prefix, n, v, now))); err != nil {
 			return err
 		}
 	}
