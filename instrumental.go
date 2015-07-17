@@ -98,14 +98,11 @@ func setup(con net.Conn, config Config) error {
 
 func send(r metrics.Registry, con net.Conn, prefix string) error {
 	vals := make(map[string]float64)
-	types := make(map[string]string)
 	now := time.Now().Unix()
 	r.Each(func(name string, i interface{}) {
 		switch m := i.(type) {
 		case metrics.Counter:
-			types[name] = "increment"
 			vals[name] = float64(m.Count())
-			m.Clear()
 		case metrics.Gauge:
 			vals[name] = float64(m.Value())
 		case metrics.GaugeFloat64:
@@ -120,14 +117,10 @@ func send(r metrics.Registry, con net.Conn, prefix string) error {
 	})
 
 	for n, v := range vals {
-		t, ok := types[n]
-		if !ok {
-			t = "gauge"
-		}
 		if n[0] == '.' {
 			n = n[1:]
 		}
-		if _, err := con.Write([]byte(fmt.Sprintf("%s %s.%s %f %d\n", t, prefix, n, v, now))); err != nil {
+		if _, err := con.Write([]byte(fmt.Sprintf("gauge %s.%s %f %d\n", prefix, n, v, now))); err != nil {
 			return err
 		}
 	}
